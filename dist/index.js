@@ -459,8 +459,10 @@ const createColors = (settings) => {
         settings.type == 'bitmap') {
         cssColors.push(`.fill-strong { fill: ${settings.strongColor}; }`);
     }
-    cssColors.push(`.fill-weak { fill: ${settings.weakColor}; }`, `.stroke-weak { stroke: ${settings.weakColor}; }`);
-    cssColors.push('.radar {', 'stroke-width: 4px;', `stroke: ${settings.radarColor};`, `fill: ${settings.radarColor};`, `fill-opacity: 0.5;`, '}');
+    if (settings.type != 'pie_lang_only') {
+        cssColors.push(`.fill-weak { fill: ${settings.weakColor}; }`, `.stroke-weak { stroke: ${settings.weakColor}; }`);
+        cssColors.push('.radar {', 'stroke-width: 4px;', `stroke: ${settings.radarColor};`, `fill: ${settings.radarColor};`, `fill-opacity: 0.5;`, '}');
+    }
     if (settings.type == 'normal') {
         settings.contribColors.forEach((color, i) => {
             const topColor = d3.rgb(color).darker(DARKER_TOP).toString();
@@ -535,6 +537,149 @@ const createCssColors = (settings) => {
 };
 exports.createCssColors = createCssColors;
 //# sourceMappingURL=create-css-colors.js.map
+
+/***/ }),
+
+/***/ 40855:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.createPieLanguage = void 0;
+const d3 = __importStar(__nccwpck_require__(85871));
+const OTHER_NAME = 'other';
+const OTHER_COLOR = '#444444';
+const createPieLanguage = (svg, userInfo, x, y, width, height, settings, isForcedAnimation) => {
+    if (userInfo.totalContributions === 0) {
+        return;
+    }
+    const languages = userInfo.contributesLanguage.slice(0, 5);
+    const sumContrib = languages
+        .map((lang) => lang.contributions)
+        .reduce((a, b) => a + b, 0);
+    const otherContributions = userInfo.totalCommitContributions - sumContrib;
+    if (0 < otherContributions) {
+        languages.push({
+            language: OTHER_NAME,
+            color: OTHER_COLOR,
+            contributions: otherContributions,
+        });
+    }
+    const isAnimate = settings.growingAnimation || isForcedAnimation;
+    const animeSteps = 5;
+    const animateOpacity = (num) => Array(languages.length + animeSteps)
+        .fill('')
+        .map((d, i) => (i < num ? 0 : Math.min((i - num) / animeSteps, 1)))
+        .join(';');
+    const radius = height / 2;
+    const margin = radius / 10;
+    const row = 8;
+    const offset = (row - languages.length) / 2 + 0.5;
+    const fontSize = height / row / 1.5;
+    const pie = d3
+        .pie()
+        .value((d) => d.contributions)
+        .sortValues(null);
+    const pieData = pie(languages);
+    const group = svg.append('g').attr('transform', `translate(${x}, ${y})`);
+    const groupLabel = group
+        .append('g')
+        .attr('transform', `translate(${radius * 2.1}, ${0})`);
+    // markers for label
+    const markers = groupLabel
+        .selectAll(null)
+        .data(pieData)
+        .enter()
+        .append('rect')
+        .attr('x', 0)
+        .attr('y', (d) => (d.index + offset) * (height / row) - fontSize / 2)
+        .attr('width', fontSize)
+        .attr('height', fontSize)
+        .attr('fill', (d) => d.data.color)
+        .attr('class', 'stroke-bg')
+        .attr('stroke-width', '1px');
+    if (isAnimate) {
+        markers
+            .append('animate')
+            .attr('attributeName', 'fill-opacity')
+            .attr('values', (d, i) => animateOpacity(i))
+            .attr('dur', '3s')
+            .attr('repeatCount', '1');
+    }
+    // labels
+    const labels = groupLabel
+        .selectAll(null)
+        .data(pieData)
+        .enter()
+        .append('text')
+        .attr('dominant-baseline', 'middle')
+        .text((d) => d.data.language)
+        .attr('x', fontSize * 1.2)
+        .attr('y', (d) => (d.index + offset) * (height / row))
+        .attr('class', 'fill-fg')
+        .attr('font-size', `${fontSize}px`);
+    if (isAnimate) {
+        labels
+            .append('animate')
+            .attr('attributeName', 'fill-opacity')
+            .attr('values', (d, i) => animateOpacity(i))
+            .attr('dur', '3s')
+            .attr('repeatCount', '1');
+    }
+    const arc = d3
+        .arc()
+        .outerRadius(radius - margin)
+        .innerRadius(radius / 2);
+    // pie chart
+    const paths = group
+        .append('g')
+        .attr('transform', `translate(${radius}, ${radius})`)
+        .selectAll(null)
+        .data(pieData)
+        .enter()
+        .append('path')
+        .attr('d', arc)
+        .style('fill', (d) => d.data.color) // style -> attr ?
+        .attr('class', 'stroke-bg')
+        .attr('stroke-width', '2px');
+    paths
+        .append('title')
+        .text((d) => `${d.data.language} ${d.data.contributions}`);
+    if (isAnimate) {
+        paths
+            .append('animate')
+            .attr('attributeName', 'fill-opacity')
+            .attr('values', (d, i) => animateOpacity(i))
+            .attr('dur', '3s')
+            .attr('repeatCount', '1');
+    }
+};
+exports.createPieLanguage = createPieLanguage;
+//# sourceMappingURL=create-pie-language.js.map
 
 /***/ }),
 
@@ -726,19 +871,25 @@ exports.createSvg = void 0;
 const d3 = __importStar(__nccwpck_require__(85871));
 const jsdom_1 = __nccwpck_require__(81865);
 const contrib = __importStar(__nccwpck_require__(92699));
-// pie chart removed — not useful with mostly private repos
+const pie = __importStar(__nccwpck_require__(40855));
 const radar = __importStar(__nccwpck_require__(81874));
 const colors = __importStar(__nccwpck_require__(42906));
 const util = __importStar(__nccwpck_require__(71010));
 const width = 1280;
 const height = 850;
+const pieHeight = 200 * 1.3;
+const pieWidth = pieHeight * 2;
 const radarWidth = 400 * 1.3;
 const radarHeight = (radarWidth * 3) / 4;
 const radarX = width - radarWidth - 40;
 const createSvg = (userInfo, settings, isForcedAnimation) => {
     let svgWidth = width;
     let svgHeight = height;
-    if (settings.type === 'radar_contrib_only') {
+    if (settings.type === 'pie_lang_only') {
+        svgWidth = pieWidth;
+        svgHeight = pieHeight;
+    }
+    else if (settings.type === 'radar_contrib_only') {
         svgWidth = radarWidth;
         svgHeight = radarHeight;
     }
@@ -766,77 +917,103 @@ const createSvg = (userInfo, settings, isForcedAnimation) => {
         // radar chart only
         radar.createRadarContrib(svg, userInfo, 0, 0, radarWidth, radarHeight, settings, isForcedAnimation);
     }
+    else if (settings.type === 'pie_lang_only') {
+        // pie chart only
+        pie.createPieLanguage(svg, userInfo, 0, 0, pieWidth, pieHeight, settings, isForcedAnimation);
+    }
     else {
         // 3D-Contrib Calendar
         contrib.create3DContrib(svg, userInfo, 0, 0, width, height, settings, isForcedAnimation);
-        // radar chart
+        // radar chart (top-right)
         radar.createRadarContrib(svg, userInfo, radarX, 70, radarWidth, radarHeight, settings, isForcedAnimation);
+        // pie chart (bottom-left, moved up to avoid clipping)
+        pie.createPieLanguage(svg, userInfo, 20, height - pieHeight - 90, pieWidth, pieHeight, settings, isForcedAnimation);
         const group = svg.append('g');
-        // --- Stats footer bar ---
-        const footerY = height - 50;
-        const footerH = 50;
-        // Semi-transparent footer background
-        group.append('rect')
-            .attr('x', 0)
-            .attr('y', footerY)
-            .attr('width', width)
-            .attr('height', footerH)
-            .attr('fill-opacity', 0.3)
-            .attr('class', 'fill-bg');
-        // Thin accent line at top of footer
-        group.append('rect')
-            .attr('x', 0)
-            .attr('y', footerY)
-            .attr('width', width)
-            .attr('height', 1.5)
-            .attr('fill-opacity', 0.4)
-            .attr('class', 'radar');
-        const contribLabel = settings.l10n
+        // --- Horizontal stats bars (bottom-right area) ---
+        const barX = width / 2 + 40;
+        const barY = height - 160;
+        const barMaxW = 200;
+        const barH = 8;
+        const rowGap = 28;
+        const stats = [
+            { label: 'Commits', value: userInfo.totalCommitContributions },
+            { label: 'Pull Requests', value: userInfo.totalPullRequestContributions },
+            { label: 'Reviews', value: userInfo.totalPullRequestReviewContributions },
+            { label: 'Issues', value: userInfo.totalIssueContributions },
+            { label: 'Repos', value: userInfo.totalRepositoryContributions },
+        ];
+        const maxVal = Math.max(...stats.map((s) => s.value), 1);
+        stats.forEach((stat, i) => {
+            const y = barY + i * rowGap;
+            const barW = Math.max((stat.value / maxVal) * barMaxW, 3);
+            // label
+            group.append('text')
+                .style('font-size', '12px')
+                .attr('x', barX)
+                .attr('y', y)
+                .text(stat.label)
+                .attr('class', 'fill-fg');
+            // bar background
+            group.append('rect')
+                .attr('x', barX + 90)
+                .attr('y', y - 7)
+                .attr('width', barMaxW)
+                .attr('height', barH)
+                .attr('rx', barH / 2)
+                .attr('fill-opacity', 0.15)
+                .attr('class', 'fill-fg');
+            // bar fill
+            const bar = group.append('rect')
+                .attr('x', barX + 90)
+                .attr('y', y - 7)
+                .attr('height', barH)
+                .attr('rx', barH / 2)
+                .attr('class', 'radar');
+            if (isForcedAnimation) {
+                bar.attr('width', 0);
+                bar.append('animate')
+                    .attr('attributeName', 'width')
+                    .attr('from', '0')
+                    .attr('to', String(barW))
+                    .attr('dur', '1.2s')
+                    .attr('fill', 'freeze')
+                    .attr('begin', `${0.3 + i * 0.1}s`);
+            }
+            else {
+                bar.attr('width', barW);
+            }
+            // value
+            group.append('text')
+                .style('font-size', '12px')
+                .style('font-weight', 'bold')
+                .attr('x', barX + 90 + barMaxW + 10)
+                .attr('y', y)
+                .text(util.inertThousandSeparator(stat.value))
+                .attr('class', 'fill-fg');
+        });
+        // --- Total contributions (bottom center) ---
+        const positionXContrib = (width * 3) / 10;
+        const positionYContrib = height - 20;
+        group
+            .append('text')
+            .style('font-size', '32px')
+            .style('font-weight', 'bold')
+            .attr('x', positionXContrib)
+            .attr('y', positionYContrib)
+            .attr('text-anchor', 'end')
+            .text(util.inertThousandSeparator(userInfo.totalContributions))
+            .attr('class', 'fill-strong');
+        const contribLabel = ('l10n' in settings && settings.l10n)
             ? settings.l10n.contrib
             : 'contributions';
-        const items = [
-            { num: util.inertThousandSeparator(userInfo.totalContributions), label: contribLabel, highlight: true },
-            { num: util.inertThousandSeparator(userInfo.totalCommitContributions), label: 'commits', highlight: false },
-            { num: util.inertThousandSeparator(userInfo.totalPullRequestContributions), label: 'pull requests', highlight: false },
-            { num: util.inertThousandSeparator(userInfo.totalPullRequestReviewContributions), label: 'reviews', highlight: false },
-            { num: util.inertThousandSeparator(userInfo.totalRepositoryContributions), label: 'repos', highlight: false },
-        ];
-        const totalItems = items.length;
-        const sectionWidth = width / totalItems;
-        items.forEach((item, i) => {
-            const cx = sectionWidth * i + sectionWidth / 2;
-            const cy = footerY + footerH / 2;
-            // Number
-            group
-                .append('text')
-                .style('font-size', item.highlight ? '22px' : '18px')
-                .style('font-weight', 'bold')
-                .attr('x', cx)
-                .attr('y', cy - 4)
-                .attr('text-anchor', 'middle')
-                .text(item.num)
-                .attr('class', item.highlight ? 'fill-strong' : 'fill-fg');
-            // Label
-            group
-                .append('text')
-                .style('font-size', '11px')
-                .attr('x', cx)
-                .attr('y', cy + 14)
-                .attr('text-anchor', 'middle')
-                .text(item.label)
-                .attr('class', 'fill-weak');
-            // Separator line (between items, not after last)
-            if (i < totalItems - 1) {
-                group.append('line')
-                    .attr('x1', sectionWidth * (i + 1))
-                    .attr('y1', footerY + 10)
-                    .attr('x2', sectionWidth * (i + 1))
-                    .attr('y2', footerY + footerH - 10)
-                    .attr('stroke-opacity', 0.2)
-                    .attr('stroke-width', 1)
-                    .attr('class', 'stroke-fg');
-            }
-        });
+        group
+            .append('text')
+            .style('font-size', '24px')
+            .attr('x', positionXContrib + 10)
+            .attr('y', positionYContrib)
+            .attr('text-anchor', 'start')
+            .text(contribLabel)
+            .attr('class', 'fill-fg');
         // --- Date range (top-right) ---
         const startDate = userInfo.contributionCalendar[0].date;
         const endDate = userInfo.contributionCalendar[userInfo.contributionCalendar.length - 1].date;
