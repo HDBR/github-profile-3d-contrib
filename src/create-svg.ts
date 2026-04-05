@@ -1,7 +1,7 @@
 import * as d3 from 'd3';
 import { JSDOM } from 'jsdom';
 import * as contrib from './create-3d-contrib';
-// pie chart removed — not useful with mostly private repos
+import * as pie from './create-pie-language';
 import * as radar from './create-radar-contrib';
 import * as colors from './create-css-colors';
 import * as util from './utils';
@@ -9,6 +9,9 @@ import * as type from './type';
 
 const width = 1280;
 const height = 850;
+
+const pieHeight = 200 * 1.3;
+const pieWidth = pieHeight * 2;
 
 const radarWidth = 400 * 1.3;
 const radarHeight = (radarWidth * 3) / 4;
@@ -21,7 +24,10 @@ export const createSvg = (
 ): string => {
     let svgWidth = width;
     let svgHeight = height;
-    if (settings.type === 'radar_contrib_only') {
+    if (settings.type === 'pie_lang_only') {
+        svgWidth = pieWidth;
+        svgHeight = pieHeight;
+    } else if (settings.type === 'radar_contrib_only') {
         svgWidth = radarWidth;
         svgHeight = radarHeight;
     }
@@ -66,6 +72,18 @@ export const createSvg = (
             settings,
             isForcedAnimation,
         );
+    } else if (settings.type === 'pie_lang_only') {
+        // pie chart only
+        pie.createPieLanguage(
+            svg,
+            userInfo,
+            0,
+            0,
+            pieWidth,
+            pieHeight,
+            settings,
+            isForcedAnimation,
+        );
     } else {
         // 3D-Contrib Calendar
         contrib.create3DContrib(
@@ -79,7 +97,7 @@ export const createSvg = (
             isForcedAnimation,
         );
 
-        // radar chart
+        // radar chart (top-right)
         radar.createRadarContrib(
             svg,
             userInfo,
@@ -91,82 +109,115 @@ export const createSvg = (
             isForcedAnimation,
         );
 
+        // pie chart (bottom-left, moved up to avoid clipping)
+        pie.createPieLanguage(
+            svg,
+            userInfo,
+            20,
+            height - pieHeight - 90,
+            pieWidth,
+            pieHeight,
+            settings,
+            isForcedAnimation,
+        );
+
         const group = svg.append('g');
 
-        // --- Stats footer bar ---
-        const footerY = height - 50;
-        const footerH = 50;
+        // --- Horizontal stats bars (bottom-right area) ---
+        const barX = width / 2 + 40;
+        const barY = height - 160;
+        const barMaxW = 200;
+        const barH = 8;
+        const rowGap = 28;
 
-        // Semi-transparent footer background
-        group.append('rect')
-            .attr('x', 0)
-            .attr('y', footerY)
-            .attr('width', width)
-            .attr('height', footerH)
-            .attr('fill-opacity', 0.3)
-            .attr('class', 'fill-bg');
-
-        // Thin accent line at top of footer
-        group.append('rect')
-            .attr('x', 0)
-            .attr('y', footerY)
-            .attr('width', width)
-            .attr('height', 1.5)
-            .attr('fill-opacity', 0.4)
-            .attr('class', 'radar');
-
-        const contribLabel = settings.l10n
-            ? settings.l10n.contrib
-            : 'contributions';
-
-        const items = [
-            { num: util.inertThousandSeparator(userInfo.totalContributions), label: contribLabel, highlight: true },
-            { num: util.inertThousandSeparator(userInfo.totalCommitContributions), label: 'commits', highlight: false },
-            { num: util.inertThousandSeparator(userInfo.totalPullRequestContributions), label: 'pull requests', highlight: false },
-            { num: util.inertThousandSeparator(userInfo.totalPullRequestReviewContributions), label: 'reviews', highlight: false },
-            { num: util.inertThousandSeparator(userInfo.totalRepositoryContributions), label: 'repos', highlight: false },
+        const stats = [
+            { label: 'Commits', value: userInfo.totalCommitContributions },
+            { label: 'Pull Requests', value: userInfo.totalPullRequestContributions },
+            { label: 'Reviews', value: userInfo.totalPullRequestReviewContributions },
+            { label: 'Issues', value: userInfo.totalIssueContributions },
+            { label: 'Repos', value: userInfo.totalRepositoryContributions },
         ];
 
-        const totalItems = items.length;
-        const sectionWidth = width / totalItems;
+        const maxVal = Math.max(...stats.map((s) => s.value), 1);
 
-        items.forEach((item, i) => {
-            const cx = sectionWidth * i + sectionWidth / 2;
-            const cy = footerY + footerH / 2;
+        stats.forEach((stat, i) => {
+            const y = barY + i * rowGap;
+            const barW = Math.max((stat.value / maxVal) * barMaxW, 3);
 
-            // Number
-            group
-                .append('text')
-                .style('font-size', item.highlight ? '22px' : '18px')
-                .style('font-weight', 'bold')
-                .attr('x', cx)
-                .attr('y', cy - 4)
-                .attr('text-anchor', 'middle')
-                .text(item.num)
-                .attr('class', item.highlight ? 'fill-strong' : 'fill-fg');
+            // label
+            group.append('text')
+                .style('font-size', '12px')
+                .attr('x', barX)
+                .attr('y', y)
+                .text(stat.label)
+                .attr('class', 'fill-fg');
 
-            // Label
-            group
-                .append('text')
-                .style('font-size', '11px')
-                .attr('x', cx)
-                .attr('y', cy + 14)
-                .attr('text-anchor', 'middle')
-                .text(item.label)
-                .attr('class', 'fill-weak');
+            // bar background
+            group.append('rect')
+                .attr('x', barX + 90)
+                .attr('y', y - 7)
+                .attr('width', barMaxW)
+                .attr('height', barH)
+                .attr('rx', barH / 2)
+                .attr('fill-opacity', 0.15)
+                .attr('class', 'fill-fg');
 
-            // Separator line (between items, not after last)
-            if (i < totalItems - 1) {
-                group.append('line')
-                    .attr('x1', sectionWidth * (i + 1))
-                    .attr('y1', footerY + 10)
-                    .attr('x2', sectionWidth * (i + 1))
-                    .attr('y2', footerY + footerH - 10)
-                    .attr('stroke-opacity', 0.2)
-                    .attr('stroke-width', 1)
-                    .attr('class', 'stroke-fg');
+            // bar fill
+            const bar = group.append('rect')
+                .attr('x', barX + 90)
+                .attr('y', y - 7)
+                .attr('height', barH)
+                .attr('rx', barH / 2)
+                .attr('class', 'radar');
+
+            if (isForcedAnimation) {
+                bar.attr('width', 0);
+                bar.append('animate')
+                    .attr('attributeName', 'width')
+                    .attr('from', '0')
+                    .attr('to', String(barW))
+                    .attr('dur', '1.2s')
+                    .attr('fill', 'freeze')
+                    .attr('begin', `${0.3 + i * 0.1}s`);
+            } else {
+                bar.attr('width', barW);
             }
+
+            // value
+            group.append('text')
+                .style('font-size', '12px')
+                .style('font-weight', 'bold')
+                .attr('x', barX + 90 + barMaxW + 10)
+                .attr('y', y)
+                .text(util.inertThousandSeparator(stat.value))
+                .attr('class', 'fill-fg');
         });
+
+        // --- Total contributions (bottom center) ---
+        const positionXContrib = (width * 3) / 10;
+        const positionYContrib = height - 20;
+
+        group
+            .append('text')
+            .style('font-size', '32px')
+            .style('font-weight', 'bold')
+            .attr('x', positionXContrib)
+            .attr('y', positionYContrib)
+            .attr('text-anchor', 'end')
+            .text(util.inertThousandSeparator(userInfo.totalContributions))
+            .attr('class', 'fill-strong');
+
+        const contribLabel = ('l10n' in settings && settings.l10n)
+            ? settings.l10n.contrib
+            : 'contributions';
+        group
+            .append('text')
+            .style('font-size', '24px')
+            .attr('x', positionXContrib + 10)
+            .attr('y', positionYContrib)
+            .attr('text-anchor', 'start')
+            .text(contribLabel)
+            .attr('class', 'fill-fg');
 
         // --- Date range (top-right) ---
         const startDate = userInfo.contributionCalendar[0].date;
