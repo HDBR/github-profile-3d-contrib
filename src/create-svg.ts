@@ -93,33 +93,107 @@ export const createSvg = (
 
         const group = svg.append('g');
 
-        const positionXContrib = (width * 3) / 10;
-        const positionYContrib = height - 20;
+        // --- Stats panel (bottom-left, where pie chart used to be) ---
+        const panelX = 30;
+        const panelY = height - 280;
+        const barMaxWidth = 180;
+        const barHeight = 14;
+        const barGap = 32;
 
-        group
+        const stats = [
+            { label: 'Commits', value: userInfo.totalCommitContributions },
+            { label: 'Pull Requests', value: userInfo.totalPullRequestContributions },
+            { label: 'Reviews', value: userInfo.totalPullRequestReviewContributions },
+            { label: 'Issues', value: userInfo.totalIssueContributions },
+            { label: 'Repos', value: userInfo.totalRepositoryContributions },
+        ];
+
+        const maxVal = Math.max(...stats.map((s) => s.value), 1);
+
+        const statsGroup = group.append('g')
+            .attr('transform', `translate(${panelX}, ${panelY})`);
+
+        // Total contributions — big number
+        statsGroup
             .append('text')
-            .style('font-size', '32px')
+            .style('font-size', '36px')
             .style('font-weight', 'bold')
-            .attr('x', positionXContrib)
-            .attr('y', positionYContrib)
-            .attr('text-anchor', 'end')
+            .attr('x', 0)
+            .attr('y', 0)
             .text(util.inertThousandSeparator(userInfo.totalContributions))
             .attr('class', 'fill-strong');
 
         const contribLabel = settings.l10n
             ? settings.l10n.contrib
             : 'contributions';
-        group
+        statsGroup
             .append('text')
-            .style('font-size', '24px')
-            .attr('x', positionXContrib + 10)
-            .attr('y', positionYContrib)
-            .attr('text-anchor', 'start')
-            .attr('text-anchor', 'start')
+            .style('font-size', '16px')
+            .attr('x', 0)
+            .attr('y', 22)
             .text(contribLabel)
-            .attr('class', 'fill-fg');
+            .attr('class', 'fill-weak');
 
-        // ISO 8601 format
+        // Horizontal bars
+        stats.forEach((stat, i) => {
+            const y = 50 + i * barGap;
+            const barW = Math.max((stat.value / maxVal) * barMaxWidth, 4);
+
+            // label
+            statsGroup
+                .append('text')
+                .style('font-size', '13px')
+                .attr('x', 0)
+                .attr('y', y)
+                .text(stat.label)
+                .attr('class', 'fill-fg');
+
+            // bar background
+            statsGroup
+                .append('rect')
+                .attr('x', 0)
+                .attr('y', y + 5)
+                .attr('width', barMaxWidth)
+                .attr('height', barHeight)
+                .attr('rx', 3)
+                .attr('fill-opacity', 0.15)
+                .attr('class', 'fill-fg');
+
+            // bar fill
+            const bar = statsGroup
+                .append('rect')
+                .attr('x', 0)
+                .attr('y', y + 5)
+                .attr('height', barHeight)
+                .attr('rx', 3)
+                .attr('class', 'radar');
+
+            if (isForcedAnimation) {
+                bar.attr('width', 0);
+                bar
+                    .append('animate')
+                    .attr('attributeName', 'width')
+                    .attr('from', '0')
+                    .attr('to', String(barW))
+                    .attr('dur', '1.5s')
+                    .attr('fill', 'freeze')
+                    .attr('begin', `${0.3 + i * 0.15}s`);
+            } else {
+                bar.attr('width', barW);
+            }
+
+            // value
+            statsGroup
+                .append('text')
+                .style('font-size', '13px')
+                .style('font-weight', 'bold')
+                .attr('x', barMaxWidth + 8)
+                .attr('y', y + 17)
+                .text(util.inertThousandSeparator(stat.value))
+                .attr('class', 'fill-fg');
+        });
+
+        // --- Date range (top-right) ---
         const startDate = userInfo.contributionCalendar[0].date;
         const endDate =
             userInfo.contributionCalendar[
