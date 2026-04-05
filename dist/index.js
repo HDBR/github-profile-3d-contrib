@@ -926,12 +926,10 @@ const createSvg = (userInfo, settings, isForcedAnimation) => {
         contrib.create3DContrib(svg, userInfo, 0, 0, width, height, settings, isForcedAnimation);
         // radar chart (top-right)
         radar.createRadarContrib(svg, userInfo, radarX, 70, radarWidth, radarHeight, settings, isForcedAnimation);
-        // pie chart (bottom-left, moved up to avoid clipping)
-        pie.createPieLanguage(svg, userInfo, 20, height - pieHeight - 90, pieWidth, pieHeight, settings, isForcedAnimation);
         const group = svg.append('g');
-        // --- Horizontal stats bars (bottom-right area) ---
-        const barX = width / 2 + 40;
-        const barY = height - 160;
+        // --- Horizontal stats bars (bottom-left, clear area) ---
+        const barX = 30;
+        const barY = height - 170;
         const barMaxW = 200;
         const barH = 8;
         const rowGap = 28;
