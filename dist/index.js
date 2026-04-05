@@ -772,29 +772,71 @@ const createSvg = (userInfo, settings, isForcedAnimation) => {
         // radar chart
         radar.createRadarContrib(svg, userInfo, radarX, 70, radarWidth, radarHeight, settings, isForcedAnimation);
         const group = svg.append('g');
-        // --- Total contributions (bottom center) ---
-        const positionXContrib = width / 2;
-        const positionYContrib = height - 20;
-        group
-            .append('text')
-            .style('font-size', '32px')
-            .style('font-weight', 'bold')
-            .attr('x', positionXContrib)
-            .attr('y', positionYContrib)
-            .attr('text-anchor', 'end')
-            .text(util.inertThousandSeparator(userInfo.totalContributions))
-            .attr('class', 'fill-strong');
+        // --- Stats footer bar ---
+        const footerY = height - 50;
+        const footerH = 50;
+        // Semi-transparent footer background
+        group.append('rect')
+            .attr('x', 0)
+            .attr('y', footerY)
+            .attr('width', width)
+            .attr('height', footerH)
+            .attr('fill-opacity', 0.3)
+            .attr('class', 'fill-bg');
+        // Thin accent line at top of footer
+        group.append('rect')
+            .attr('x', 0)
+            .attr('y', footerY)
+            .attr('width', width)
+            .attr('height', 1.5)
+            .attr('fill-opacity', 0.4)
+            .attr('class', 'radar');
         const contribLabel = settings.l10n
             ? settings.l10n.contrib
             : 'contributions';
-        group
-            .append('text')
-            .style('font-size', '24px')
-            .attr('x', positionXContrib + 10)
-            .attr('y', positionYContrib)
-            .attr('text-anchor', 'start')
-            .text(contribLabel)
-            .attr('class', 'fill-fg');
+        const items = [
+            { num: util.inertThousandSeparator(userInfo.totalContributions), label: contribLabel, highlight: true },
+            { num: util.inertThousandSeparator(userInfo.totalCommitContributions), label: 'commits', highlight: false },
+            { num: util.inertThousandSeparator(userInfo.totalPullRequestContributions), label: 'pull requests', highlight: false },
+            { num: util.inertThousandSeparator(userInfo.totalPullRequestReviewContributions), label: 'reviews', highlight: false },
+            { num: util.inertThousandSeparator(userInfo.totalRepositoryContributions), label: 'repos', highlight: false },
+        ];
+        const totalItems = items.length;
+        const sectionWidth = width / totalItems;
+        items.forEach((item, i) => {
+            const cx = sectionWidth * i + sectionWidth / 2;
+            const cy = footerY + footerH / 2;
+            // Number
+            group
+                .append('text')
+                .style('font-size', item.highlight ? '22px' : '18px')
+                .style('font-weight', 'bold')
+                .attr('x', cx)
+                .attr('y', cy - 4)
+                .attr('text-anchor', 'middle')
+                .text(item.num)
+                .attr('class', item.highlight ? 'fill-strong' : 'fill-fg');
+            // Label
+            group
+                .append('text')
+                .style('font-size', '11px')
+                .attr('x', cx)
+                .attr('y', cy + 14)
+                .attr('text-anchor', 'middle')
+                .text(item.label)
+                .attr('class', 'fill-weak');
+            // Separator line (between items, not after last)
+            if (i < totalItems - 1) {
+                group.append('line')
+                    .attr('x1', sectionWidth * (i + 1))
+                    .attr('y1', footerY + 10)
+                    .attr('x2', sectionWidth * (i + 1))
+                    .attr('y2', footerY + footerH - 10)
+                    .attr('stroke-opacity', 0.2)
+                    .attr('stroke-width', 1)
+                    .attr('class', 'stroke-fg');
+            }
+        });
         // --- Date range (top-right) ---
         const startDate = userInfo.contributionCalendar[0].date;
         const endDate = userInfo.contributionCalendar[userInfo.contributionCalendar.length - 1].date;
