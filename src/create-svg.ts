@@ -111,12 +111,36 @@ export const createSvg = (
 
         const group = svg.append('g');
 
-        // --- Horizontal stats bars (bottom-left, clear area) ---
-        const barX = 30;
-        const barY = height - 170;
+        // --- Total contributions (above bars) ---
+        const panelX = 30;
+        const contribY = height - 210;
+
+        group
+            .append('text')
+            .style('font-size', '32px')
+            .style('font-weight', 'bold')
+            .attr('x', panelX)
+            .attr('y', contribY)
+            .text(util.inertThousandSeparator(userInfo.totalContributions))
+            .attr('class', 'fill-strong');
+
+        const contribLabel = ('l10n' in settings && settings.l10n)
+            ? settings.l10n.contrib
+            : 'contributions';
+        group
+            .append('text')
+            .style('font-size', '16px')
+            .attr('x', panelX)
+            .attr('y', contribY + 22)
+            .text(contribLabel)
+            .attr('class', 'fill-weak');
+
+        // --- Horizontal stats bars (below contributions) ---
+        const barX = panelX;
+        const barY = contribY + 50;
         const barMaxW = 200;
         const barH = 8;
-        const rowGap = 28;
+        const rowGap = 26;
 
         const stats = [
             { label: 'Commits', value: userInfo.totalCommitContributions },
@@ -180,32 +204,6 @@ export const createSvg = (
                 .text(util.inertThousandSeparator(stat.value))
                 .attr('class', 'fill-fg');
         });
-
-        // --- Total contributions (bottom center) ---
-        const positionXContrib = (width * 3) / 10;
-        const positionYContrib = height - 20;
-
-        group
-            .append('text')
-            .style('font-size', '32px')
-            .style('font-weight', 'bold')
-            .attr('x', positionXContrib)
-            .attr('y', positionYContrib)
-            .attr('text-anchor', 'end')
-            .text(util.inertThousandSeparator(userInfo.totalContributions))
-            .attr('class', 'fill-strong');
-
-        const contribLabel = ('l10n' in settings && settings.l10n)
-            ? settings.l10n.contrib
-            : 'contributions';
-        group
-            .append('text')
-            .style('font-size', '24px')
-            .attr('x', positionXContrib + 10)
-            .attr('y', positionYContrib)
-            .attr('text-anchor', 'start')
-            .text(contribLabel)
-            .attr('class', 'fill-fg');
 
         // --- Date range (top-right) ---
         const startDate = userInfo.contributionCalendar[0].date;
